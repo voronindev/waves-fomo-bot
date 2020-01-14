@@ -67,6 +67,7 @@ func (s *Listener) Launch() {
 		fmt.Println(s.props.BlocksPerCompetition-offset, "left")
 
 		if s.props.BlocksPerCompetition-offset == 1 {
+			fmt.Println("turn: last block")
 			s.turn()
 			time.Sleep(1 * time.Second)
 
@@ -75,6 +76,7 @@ func (s *Listener) Launch() {
 
 		diff := int64(s.state.heightToGetMoney) - int64(h)
 		if diff > 0 && diff <= 3 && s.state.last != senderAddress.String() {
+			fmt.Println("turn: prolong")
 			s.turn()
 			time.Sleep(30 * time.Second)
 
