@@ -10,6 +10,7 @@ import (
 var (
 	apiUrlNode          = "https://nodes.wavesnodes.com"
 	contractAddress     = "3PDtyStFHhEF5LSqPi4amUUAW6KQQQhNaR7"
+	senderAddress, _    = proto.NewAddressFromString("")
 	senderPublicKey, _  = crypto.NewPublicKeyFromBase58("")
 	senderPrivateKey, _ = crypto.NewSecretKeyFromBase58("")
 	assetWaves, _       = proto.NewOptionalAssetFromString("WAVES")

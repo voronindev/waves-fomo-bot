@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -22,8 +24,14 @@ var tradisysOptions = client.Options{
 	Client:  &http.Client{Timeout: 3 * time.Second},
 }
 
+type GameState struct {
+	heightToGetMoney uint64
+	last             string
+}
+
 type Listener struct {
 	api   []*client.Transactions
+	state *GameState
 	props *ContractProps
 }
 
@@ -32,8 +40,12 @@ func NewListener(props *ContractProps) *Listener {
 		client.NewTransactions(defaultOptions),
 		client.NewTransactions(tradisysOptions),
 	}
+	state := &GameState{
+		heightToGetMoney: 0,
+		last:             "",
+	}
 
-	return &Listener{api: api, props: props}
+	return &Listener{api: api, state: state, props: props}
 }
 
 func (s *Listener) Launch() {
@@ -44,12 +56,29 @@ func (s *Listener) Launch() {
 		if h >= height {
 			height = h
 		}
+		err := s.getGameState()
+		if err != nil {
+			continue
+		}
+
+		fmt.Println(int64(s.state.heightToGetMoney), int64(h))
+
 		offset := (height - s.props.BlocksOnGameStart) % s.props.BlocksPerRound
 		fmt.Println(s.props.BlocksPerCompetition-offset, "left")
 
 		if s.props.BlocksPerCompetition-offset == 1 {
-			fmt.Println("TURN")
 			s.turn()
+			time.Sleep(1 * time.Second)
+
+			continue
+		}
+
+		diff := int64(s.state.heightToGetMoney) - int64(h)
+		if diff > 0 && diff <= 3 && s.state.last != senderAddress.String() {
+			s.turn()
+			time.Sleep(30 * time.Second)
+
+			continue
 		}
 
 		time.Sleep(1 * time.Second)
@@ -57,13 +86,13 @@ func (s *Listener) Launch() {
 }
 
 func (s *Listener) getHeight() uint64 {
-	client, err := http.Get(fmt.Sprintf("%s/blocks/height", apiUrlNode))
+	c, err := http.Get(fmt.Sprintf("%s/blocks/height", apiUrlNode))
 	if err != nil {
 		return 0
 	}
-	defer client.Body.Close()
+	defer c.Body.Close()
 
-	body, err := ioutil.ReadAll(client.Body)
+	body, err := ioutil.ReadAll(c.Body)
 	if err != nil {
 		return 0
 	}
@@ -75,6 +104,33 @@ func (s *Listener) getHeight() uint64 {
 	_ = json.Unmarshal(body, h)
 
 	return h.Height
+}
+
+func (s *Listener) getGameState() error {
+	c, err := http.Get(fmt.Sprintf("%s/addresses/data/%s/%s", apiUrlNode, contractAddress, "RoundsSharedState"))
+	if err != nil {
+		return err
+	}
+	defer c.Body.Close()
+
+	body, err := ioutil.ReadAll(c.Body)
+	if err != nil {
+		return err
+	}
+
+	v := &struct {
+		Value string `json:"value"`
+	}{}
+
+	_ = json.Unmarshal(body, v)
+	spl := strings.Split(v.Value, "_")
+	stateHeightToGetMoney, _ := strconv.Atoi(spl[0])
+	stateLast := strings.Split(spl[2], "-")[1]
+
+	s.state.heightToGetMoney = uint64(stateHeightToGetMoney)
+	s.state.last = stateLast
+
+	return nil
 }
 
 func (s *Listener) turn() {

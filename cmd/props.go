@@ -20,13 +20,13 @@ type ContractProps struct {
 }
 
 func GetContractProperties() (*ContractProps, error) {
-	client, err := http.Get(fmt.Sprintf("%s/addresses/data/%s?matches=\\$.*", apiUrlNode, contractAddress))
+	c, err := http.Get(fmt.Sprintf("%s/addresses/data/%s?matches=\\$.*", apiUrlNode, contractAddress))
 	if err != nil {
 		return nil, err
 	}
-	defer client.Body.Close()
+	defer c.Body.Close()
 
-	body, err := ioutil.ReadAll(client.Body)
+	body, err := ioutil.ReadAll(c.Body)
 	if err != nil {
 		return nil, err
 	}
