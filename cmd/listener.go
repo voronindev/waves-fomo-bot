@@ -61,10 +61,8 @@ func (s *Listener) Launch() {
 			continue
 		}
 
-		fmt.Println(int64(s.state.heightToGetMoney), int64(h))
-
 		offset := (height - s.props.BlocksOnGameStart) % s.props.BlocksPerRound
-		fmt.Println(s.props.BlocksPerCompetition-offset, "left")
+		fmt.Println(s.props.BlocksPerCompetition-offset, "offset")
 
 		if s.props.BlocksPerCompetition-offset == 1 {
 			fmt.Println("turn: last block")
@@ -75,15 +73,19 @@ func (s *Listener) Launch() {
 		}
 
 		diff := int64(s.state.heightToGetMoney) - int64(h)
+		if diff > 0 {
+			fmt.Println(diff, "blocks left")
+		}
+
 		if diff > 0 && diff <= 3 && s.state.last != senderAddress.String() {
 			fmt.Println("turn: prolong")
 			s.turn()
-			time.Sleep(30 * time.Second)
+			time.Sleep(15 * time.Second)
 
 			continue
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(1 * time.Minute)
 	}
 }
 
