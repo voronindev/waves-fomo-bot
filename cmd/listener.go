@@ -52,11 +52,16 @@ func (s *Listener) Launch() {
 	height := uint64(0)
 
 	for {
-		h := s.getHeight()
+		h, err := s.getHeight()
+		if err != nil {
+			continue
+		}
+
 		if h >= height {
 			height = h
 		}
-		err := s.getGameState()
+
+		err = s.getGameState()
 		if err != nil {
 			continue
 		}
@@ -85,29 +90,32 @@ func (s *Listener) Launch() {
 			continue
 		}
 
-		time.Sleep(1 * time.Minute)
+		time.Sleep(10 * time.Second)
 	}
 }
 
-func (s *Listener) getHeight() uint64 {
+func (s *Listener) getHeight() (uint64, error) {
 	c, err := http.Get(fmt.Sprintf("%s/blocks/height", apiUrlNode))
 	if err != nil {
-		return 0
+		return 0, err
 	}
 	defer c.Body.Close()
 
 	body, err := ioutil.ReadAll(c.Body)
 	if err != nil {
-		return 0
+		return 0, err
 	}
 
 	h := &struct {
 		Height uint64 `json:"height"`
 	}{}
 
-	_ = json.Unmarshal(body, h)
+	err = json.Unmarshal(body, h)
+	if err != nil {
+		return 0, err
+	}
 
-	return h.Height
+	return h.Height, nil
 }
 
 func (s *Listener) getGameState() error {
@@ -126,13 +134,18 @@ func (s *Listener) getGameState() error {
 		Value string `json:"value"`
 	}{}
 
-	_ = json.Unmarshal(body, v)
-	spl := strings.Split(v.Value, "_")
-	stateHeightToGetMoney, _ := strconv.Atoi(spl[0])
-	stateLast := strings.Split(spl[2], "-")[1]
+	err = json.Unmarshal(body, v)
+	if err != nil {
+		return err
+	}
 
-	s.state.heightToGetMoney = uint64(stateHeightToGetMoney)
-	s.state.last = stateLast
+	spl := strings.Split(v.Value, "_")
+	if len(spl) >= 2 {
+		stateHeightToGetMoney, _ := strconv.Atoi(spl[0])
+		stateLast := strings.Split(spl[2], "-")[1]
+		s.state.heightToGetMoney = uint64(stateHeightToGetMoney)
+		s.state.last = stateLast
+	}
 
 	return nil
 }
