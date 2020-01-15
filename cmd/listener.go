@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,15 +15,17 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-var defaultOptions = client.Options{
-	BaseUrl: "https://nodes.wavesnodes.com",
-	Client:  &http.Client{Timeout: 3 * time.Second},
-}
-
-var tradisysOptions = client.Options{
-	BaseUrl: "https://gamenode.tradisys.com",
-	Client:  &http.Client{Timeout: 3 * time.Second},
-}
+var (
+	errIncomingDataAreWrong = errors.New("incoming data are wrong")
+	tradisysOptions         = client.Options{
+		BaseUrl: "https://gamenode.tradisys.com",
+		Client:  &http.Client{Timeout: 3 * time.Second},
+	}
+	defaultOptions = client.Options{
+		BaseUrl: "https://nodes.wavesnodes.com",
+		Client:  &http.Client{Timeout: 3 * time.Second},
+	}
+)
 
 type GameState struct {
 	heightToGetMoney uint64
@@ -82,7 +85,7 @@ func (s *Listener) Launch() {
 			fmt.Println(diff, "blocks left")
 		}
 
-		if diff > 0 && diff <= 3 && s.state.last != senderAddress.String() {
+		if diff > 0 && diff <= 4 && s.state.last != senderAddress.String() {
 			fmt.Println("turn: prolong")
 			s.turn()
 			time.Sleep(15 * time.Second)
@@ -142,9 +145,17 @@ func (s *Listener) getGameState() error {
 	spl := strings.Split(v.Value, "_")
 	if len(spl) >= 2 {
 		stateHeightToGetMoney, _ := strconv.Atoi(spl[0])
-		stateLast := strings.Split(spl[2], "-")[1]
-		s.state.heightToGetMoney = uint64(stateHeightToGetMoney)
-		s.state.last = stateLast
+
+		participants := strings.Split(spl[2], "-")
+		if len(participants) >= 1 {
+			stateLast := participants[1]
+			s.state.heightToGetMoney = uint64(stateHeightToGetMoney)
+			s.state.last = stateLast
+		} else {
+			return errIncomingDataAreWrong
+		}
+	} else {
+		return errIncomingDataAreWrong
 	}
 
 	return nil
