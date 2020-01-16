@@ -143,11 +143,14 @@ func (s *Listener) getGameState() error {
 	}
 
 	spl := strings.Split(v.Value, "_")
-	if len(spl) >= 2 {
-		stateHeightToGetMoney, _ := strconv.Atoi(spl[0])
+	if len(spl) == 3 {
+		stateHeightToGetMoney, err := strconv.Atoi(spl[0])
+		if err != nil {
+			return err
+		}
 
 		participants := strings.Split(spl[2], "-")
-		if len(participants) >= 1 {
+		if len(participants) >= 2 {
 			stateLast := participants[1]
 			s.state.heightToGetMoney = uint64(stateHeightToGetMoney)
 			s.state.last = stateLast
